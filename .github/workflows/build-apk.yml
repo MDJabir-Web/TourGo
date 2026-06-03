@@ -13,20 +13,38 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 22
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install Cordova globally
+        run: npm install -g cordova
 
-      - name: Install EAS CLI globally
-        run: npm install -g eas-cli
+      - name: Initialize Android project
+        run: |
+          mkdir build-dir
+          cd build-dir
+          cordova create app com.tourgo.app TourGo
+          cd app
+          cordova platform add android
+          # Copy your project files into Cordova's www directory
+          rm -rf www/*
+          cp -r ../../TourGo/* www/ || cp -r ../../* www/ || true
 
-      - name: Build local APK using Expo CLI
-        run: npx expo export --platform android
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build Android APK
+        run: |
+          cd build-dir/app
+          cordova build android --device
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: dist/*.apk
+          name: TourGo-Android-APK
+          path: build-dir/app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
