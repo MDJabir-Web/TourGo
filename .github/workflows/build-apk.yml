@@ -21,6 +21,9 @@ jobs:
       - name: Build Web Project (If applicable)
         run: |
           if [ -f "package.json" ]; then
+            # Force relative asset paths during build for Vite/Next/React configs
+            export PUBLIC_URL="./"
+            export VITE_BASE_URL="./"
             npm install --legacy-peer-deps || npm install
             npm run build --if-present || true
           fi
@@ -33,10 +36,10 @@ jobs:
           cd app
           cordova platform add android
           
-          # Clean Cordova's default templates
+          # Clean default templates
           rm -rf www/*
 
-          # Fallback mechanism: Copy production build assets or root files
+          # Copy production assets or root files
           if [ -d "../../dist" ]; then
             cp -r ../../dist/* www/
           elif [ -d "../../build" ]; then
@@ -47,11 +50,17 @@ jobs:
             cp -r ../../* www/ || true
           fi
 
-          # WIPE OUT local node_modules from the web asset directory to prevent loop errors
+          # Wipe out dangerous duplicate folders
           rm -rf www/node_modules
           rm -rf www/build-dir
 
-          # CRITICAL SAFETY: Ensure an index.html exists
+          # Fix Asset Paths across all compiled files (Changes /assets to ./assets)
+          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/href="\/assets/href=".\/assets/g' {} +
+          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/src="\/assets/src=".\/assets/g' {} +
+          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/href="\//href=".\//g' {} +
+          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/src="\//src=".\//g' {} +
+
+          # Re-verify or generate core index.html structure if missing
           if [ ! -f "www/index.html" ]; then
             cat << 'EOF' > www/index.html
           <!DOCTYPE html>
@@ -72,14 +81,14 @@ jobs:
           EOF
           fi
           
-          # Fix local asset routing preferences for Android WebView
+          # Adjust Android local file preferences
           sed -i 's/<content src="index.html" \/>/<content src="index.html" \/>\n    <preference name="AndroidInsecureFileModeEnabled" value="true" \/>\n    <preference name="AllowInlineMediaPlayback" value="true" \/>/' config.xml
           
-          # Inject logo configuration if logo.png exists anywhere
+          # Standardize Logo configuration
           LOGO_PATH=$(find ../../ -name "logo.png" | grep -v "node_modules" | head -n 1)
           if [ ! -z "$LOGO_PATH" ]; then
             cp "$LOGO_PATH" www/logo.png
-            sed -i '/<\/widget>/i \    <icon src="www/logo.png" \/>' config.xml
+            sed -i '/<\/widget>/i \    <icon src="www/logo.png" width="512" height="512" \/>' config.xml
           fi
 
       - name: Setup Java JDK
@@ -94,7 +103,6 @@ jobs:
       - name: Build Android APK
         run: |
           cd build-dir/app
-          # Clean platform assets completely before compiling
           cordova clean android
           cordova build android --device
 
