@@ -25,9 +25,13 @@ jobs:
           cordova create app com.tourgo.app TourGo
           cd app
           cordova platform add android
-          # Copy project files into Cordova's www directory
+          
+          # Clean and copy your project files into Cordova's www directory
           rm -rf www/*
           cp -r ../../TourGo/* www/ || cp -r ../../* www/ || true
+          
+          # FIX: Force Cordova to load locally from the app bundle instead of localhost
+          sed -i 's/<content src="index.html" \/>/<content src="index.html" \/>\n    <preference name="AndroidInsecureFileModeEnabled" value="true" \/>\n    <preference name="AllowInlineMediaPlayback" value="true" \/>/' config.xml
           
           # Inject logo configuration if logo.png exists
           if [ -f "../../logo.png" ]; then
