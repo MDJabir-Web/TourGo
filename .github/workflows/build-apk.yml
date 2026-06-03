@@ -36,7 +36,7 @@ jobs:
           # Clean Cordova's default templates
           rm -rf www/*
 
-          # Fallback mechanism: If no build folder exists, copy everything available
+          # Fallback mechanism: Copy production build assets or root files
           if [ -d "../../dist" ]; then
             cp -r ../../dist/* www/
           elif [ -d "../../build" ]; then
@@ -44,12 +44,14 @@ jobs:
           elif [ -d "../../.next" ]; then
             cp -r ../../.next/* www/
           else
-            # Copy all root files if no standard build folder is found
             cp -r ../../* www/ || true
           fi
 
-          # CRITICAL SAFETY: If no index.html exists, create a generic entry point 
-          # that links up your app bundles automatically so Cordova doesn't crash.
+          # WIPE OUT local node_modules from the web asset directory to prevent loop errors
+          rm -rf www/node_modules
+          rm -rf www/build-dir
+
+          # CRITICAL SAFETY: Ensure an index.html exists
           if [ ! -f "www/index.html" ]; then
             cat << 'EOF' > www/index.html
           <!DOCTYPE html>
@@ -63,7 +65,6 @@ jobs:
               <div id="root"></div>
               <div id="app"></div>
               <script type="text/javascript" src="cordova.js"></script>
-              <!-- Auto-include bundled scripts if they exist -->
               <script type="module" src="assets/index.js"></script>
               <script type="text/javascript" src="main.js"></script>
           </body>
@@ -93,6 +94,8 @@ jobs:
       - name: Build Android APK
         run: |
           cd build-dir/app
+          # Clean platform assets completely before compiling
+          cordova clean android
           cordova build android --device
 
       - name: Upload APK Artifact
