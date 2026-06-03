@@ -25,9 +25,18 @@ jobs:
           cordova create app com.tourgo.app TourGo
           cd app
           cordova platform add android
-          # Copy your project files into Cordova's www directory
+          # Copy project files into Cordova's www directory
           rm -rf www/*
           cp -r ../../TourGo/* www/ || cp -r ../../* www/ || true
+          
+          # Inject logo configuration if logo.png exists
+          if [ -f "../../logo.png" ]; then
+            cp ../../logo.png www/logo.png
+            sed -i '/<\/widget>/i \    <icon src="www/logo.png" \/>' config.xml
+          elif [ -f "../../TourGo/logo.png" ]; then
+            cp "../../TourGo/logo.png" www/logo.png
+            sed -i '/<\/widget>/i \    <icon src="www/logo.png" \/>' config.xml
+          fi
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
