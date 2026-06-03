@@ -18,6 +18,13 @@ jobs:
       - name: Install Cordova globally
         run: npm install -g cordova
 
+      - name: Build Web Project (If applicable)
+        run: |
+          if [ -f "package.json" ]; then
+            npm install --legacy-peer-deps || npm install
+            npm run build --if-present || true
+          fi
+
       - name: Initialize Android project
         run: |
           mkdir build-dir
@@ -26,19 +33,31 @@ jobs:
           cd app
           cordova platform add android
           
-          # Clean and copy your project files into Cordova's www directory
+          # Clean Cordova's default template assets
           rm -rf www/*
-          cp -r ../../TourGo/* www/ || cp -r ../../* www/ || true
+
+          # Find where the production index.html lives (checking dist, build, out, or root)
+          INDEX_PATH=$(find ../../ -name "index.html" | grep -v "node_modules" | grep -v "build-dir" | head -n 1)
           
-          # FIX: Force Cordova to load locally from the app bundle instead of localhost
+          if [ -z "$INDEX_PATH" ]; then
+            echo "CRITICAL ERROR: No index.html found anywhere in the repository!"
+            exit 1
+          fi
+          
+          # Get the correct folder containing that index.html
+          SOURCE_DIR=$(dirname "$INDEX_PATH")
+          echo "Targeting web build directory: $SOURCE_DIR"
+          
+          # Copy every single asset from that folder right into Cordova's assets
+          cp -r "$SOURCE_DIR"/* www/
+          
+          # Fix local asset routing preferences for Android WebView
           sed -i 's/<content src="index.html" \/>/<content src="index.html" \/>\n    <preference name="AndroidInsecureFileModeEnabled" value="true" \/>\n    <preference name="AllowInlineMediaPlayback" value="true" \/>/' config.xml
           
-          # Inject logo configuration if logo.png exists
-          if [ -f "../../logo.png" ]; then
-            cp ../../logo.png www/logo.png
-            sed -i '/<\/widget>/i \    <icon src="www/logo.png" \/>' config.xml
-          elif [ -f "../../TourGo/logo.png" ]; then
-            cp "../../TourGo/logo.png" www/logo.png
+          # Inject logo configuration if logo.png exists anywhere
+          LOGO_PATH=$(find ../../ -name "logo.png" | grep -v "node_modules" | head -n 1)
+          if [ ! -z "$LOGO_PATH" ]; then
+            cp "$LOGO_PATH" www/logo.png
             sed -i '/<\/widget>/i \    <icon src="www/logo.png" \/>' config.xml
           fi
 
