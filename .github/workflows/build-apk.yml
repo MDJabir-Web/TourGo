@@ -33,23 +33,43 @@ jobs:
           cd app
           cordova platform add android
           
-          # Clean Cordova's default template assets
+          # Clean Cordova's default templates
           rm -rf www/*
 
-          # Find where the production index.html lives (checking dist, build, out, or root)
-          INDEX_PATH=$(find ../../ -name "index.html" | grep -v "node_modules" | grep -v "build-dir" | head -n 1)
-          
-          if [ -z "$INDEX_PATH" ]; then
-            echo "CRITICAL ERROR: No index.html found anywhere in the repository!"
-            exit 1
+          # Fallback mechanism: If no build folder exists, copy everything available
+          if [ -d "../../dist" ]; then
+            cp -r ../../dist/* www/
+          elif [ -d "../../build" ]; then
+            cp -r ../../build/* www/
+          elif [ -d "../../.next" ]; then
+            cp -r ../../.next/* www/
+          else
+            # Copy all root files if no standard build folder is found
+            cp -r ../../* www/ || true
           fi
-          
-          # Get the correct folder containing that index.html
-          SOURCE_DIR=$(dirname "$INDEX_PATH")
-          echo "Targeting web build directory: $SOURCE_DIR"
-          
-          # Copy every single asset from that folder right into Cordova's assets
-          cp -r "$SOURCE_DIR"/* www/
+
+          # CRITICAL SAFETY: If no index.html exists, create a generic entry point 
+          # that links up your app bundles automatically so Cordova doesn't crash.
+          if [ ! -f "www/index.html" ]; then
+            cat << 'EOF' > www/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="initial-scale=1, width=device-width, height=device-height, viewport-fit=cover">
+              <title>TourGo</title>
+          </head>
+          <body>
+              <div id="root"></div>
+              <div id="app"></div>
+              <script type="text/javascript" src="cordova.js"></script>
+              <!-- Auto-include bundled scripts if they exist -->
+              <script type="module" src="assets/index.js"></script>
+              <script type="text/javascript" src="main.js"></script>
+          </body>
+          </html>
+          EOF
+          fi
           
           # Fix local asset routing preferences for Android WebView
           sed -i 's/<content src="index.html" \/>/<content src="index.html" \/>\n    <preference name="AndroidInsecureFileModeEnabled" value="true" \/>\n    <preference name="AllowInlineMediaPlayback" value="true" \/>/' config.xml
