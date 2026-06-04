@@ -53,13 +53,7 @@ jobs:
           rm -rf www/node_modules
           rm -rf www/build-dir
 
-          # Fix Asset Paths across all compiled files for local WebView routing
-          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/href="\/assets/href=".\/assets/g' {} +
-          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/src="\/assets/src=".\/assets/g' {} +
-          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/href="\//href=".\//g' {} +
-          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/src="\//src=".\//g' {} +
-
-          # Guarantee core index.html structure exists
+          # Guarantee core index.html structure exists if missing
           if [ ! -f "www/index.html" ]; then
             cat << 'EOF' > www/index.html
           <!DOCTYPE html>
@@ -80,13 +74,14 @@ jobs:
           EOF
           fi
           
-          # Force Cordova to load local app assets safely 
-          sed -i 's/<content src="index.html" \/>/<content src="index.html" \/>\n    <preference name="AndroidInsecureFileModeEnabled" value="true" \/>\n    <preference name="AllowInlineMediaPlayback" value="true" \/>/' config.xml
+          # FIX: Force Cordova to map assets safely to localhost domain scheme (resolves white screen)
+          sed -i 's/<content src="index.html" \/>/<content src="index.html" \/>\n    <preference name="scheme" value="https" \/>\n    <preference name="hostname" value="localhost" \/>\n    <preference name="AndroidInsecureFileModeEnabled" value="true" \/>\n    <preference name="AllowInlineMediaPlayback" value="true" \/>/' config.xml
           
-          # Bypassing XML manipulation to prevent resource linking compilation crashes
+          # FIX: Safely map Logo asset dynamically into the resource index
           LOGO_PATH=$(find ../../ -name "logo.png" | grep -v "node_modules" | head -n 1)
           if [ ! -z "$LOGO_PATH" ]; then
             cp "$LOGO_PATH" www/logo.png
+            sed -i '/<\/widget>/i \    <icon src="www/logo.png" \/>' config.xml
           fi
 
       - name: Setup Java JDK
