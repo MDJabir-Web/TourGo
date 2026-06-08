@@ -222,7 +222,7 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Built with ❤️ for travelers exploring Sylhet**
+**Built by Shorat Kairi**
 
 ## Join the community
 
