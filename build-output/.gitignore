@@ -1,0 +1,20 @@
+# Build outputs
+build-output/*.apk
+build-output/*.json
+build-output/logs/
+
+# EAS
+.eas/
+
+# Dependencies
+node_modules/
+.expo/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp

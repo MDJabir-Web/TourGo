@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/railway.json",
+  "build": {
+    "builder": "dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "startCommand": "python manage.py migrate && gunicorn sylhet_go_api.wsgi:application --bind 0.0.0.0:8000"
+  }
+}

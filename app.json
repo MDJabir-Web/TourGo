@@ -17,12 +17,17 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "icon": "./assets/images/icon.png",
       "predictiveBackGestureEnabled": false,
-      "package": "com.ashraf_69.TourGo"
+      "package": "com.tourgo.app",
+      "permissions": []
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "build": {
+        "babel": {}
+      }
     },
     "plugins": [
       "expo-router",
