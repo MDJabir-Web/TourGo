@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 name: Build APK
 
 on:
@@ -56,3 +57,122 @@ jobs:
           name: tourgo-apk
           path: build-output/**/*.apk
           retention-days: 30
+=======
+name: Build Android APK
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Cordova globally
+        run: npm install -g cordova
+
+      - name: Build Web Project
+        run: |
+          if [ -f "package.json" ]; then
+            export PUBLIC_URL="./"
+            export VITE_BASE_URL="./"
+            npm install --legacy-peer-deps || npm install
+            npm run build --if-present || true
+          fi
+
+      - name: Initialize Android project
+        run: |
+          mkdir build-dir
+          cd build-dir
+          cordova create app com.tourgo.app TourGo
+          cd app
+          cordova platform add android
+          
+          # Clean default assets
+          rm -rf www/*
+
+          # Copy compiled production assets
+          if [ -d "../../dist" ] && [ "$(ls -A ../../dist)" ]; then
+            cp -r ../../dist/* www/
+          elif [ -d "../../build" ] && [ "$(ls -A ../../build)" ]; then
+            cp -r ../../build/* www/
+          elif [ -d "../../.next" ] && [ "$(ls -A ../../.next)" ]; then
+            cp -r ../../.next/* www/
+          else
+            cp -r ../../* www/ || true
+          fi
+
+          # Clear overlapping folders
+          rm -rf www/node_modules
+          rm -rf www/build-dir
+
+          # Dynamically detect your actual framework bundle file name
+          REAL_JS_FILE=$(find www/assets/ -name "index-*.js" | head -n 1 | sed 's|www/||')
+          REAL_CSS_FILE=$(find www/assets/ -name "index-*.css" | head -n 1 | sed 's|www/||')
+
+          echo "Detected Bundle JS: $REAL_JS_FILE"
+          echo "Detected Bundle CSS: $REAL_CSS_FILE"
+
+          # Fix relative path mappings for assets inside subdirectories
+          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/href="\/assets/href=".\/assets/g' {} +
+          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/src="\/assets/src=".\/assets/g' {} +
+          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/href="\//href=".\//g' {} +
+          find www/ -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" \) -exec sed -i 's/src="\//src=".\//g' {} +
+
+          # Generate a robust entry shell utilizing the exact scanned framework assets
+          cat << EOF > www/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="initial-scale=1, width=device-width, height=device-height, viewport-fit=cover">
+              <title>TourGo</title>
+              <link rel="stylesheet" href="${REAL_CSS_FILE:-assets/index.css}">
+          </head>
+          <body>
+              <div id="root"></div>
+              <div id="app"></div>
+              <script type="text/javascript" src="cordova.js"></script>
+              <script type="module" src="${REAL_JS_FILE:-assets/index.js}"></script>
+          </body>
+          </html>
+          EOF
+          
+          # Enforce localhost secure schema preferences
+          sed -i 's/<content src="index.html" \/>/<content src="index.html" \/>\n    <preference name="scheme" value="https" \/>\n    <preference name="hostname" value="localhost" \/>\n    <preference name="AndroidInsecureFileModeEnabled" value="true" \/>\n    <preference name="AllowInlineMediaPlayback" value="true" \/>/' config.xml
+          
+          # Inject Logo asset natively to ensure it displays on the phone home screen
+          LOGO_PATH=$(find ../../ -name "logo.png" | grep -v "node_modules" | head -n 1)
+          if [ ! -z "$LOGO_PATH" ]; then
+            cp "$LOGO_PATH" www/logo.png
+            sed -i '/<\/widget>/i \    <icon src="www/logo.png" \/>' config.xml
+          fi
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build Android APK
+        run: |
+          cd build-dir/app
+          cordova clean android
+          cordova build android --device
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TourGo-Android-APK
+          path: build-dir/app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+>>>>>>> 41d5759522b591a516ab67ccbcb8a9d08252327a
